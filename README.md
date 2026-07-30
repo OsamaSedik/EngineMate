@@ -46,7 +46,9 @@ Configurable directly via `Project Settings -> Developer Settings -> Engine Mate
 - **Texture Validation**: Warns when textures exceed configurable maximum resolution limits (2K, 4K, 8K).
 - **Blueprint Optimization Checks**: Detects enabled Tick functions and empty mesh components.
 - **Mesh Integrity Rules**: Validates minimum LOD counts and collision settings for static meshes.
----
+
+<img width="773" height="903" alt="d4" src="https://github.com/user-attachments/assets/aa9d691f-fd42-4c6c-98d6-47a6ea362622" />
+
 ## 🚀 Installation & Setup
 1. **Clone or Download** this repository into your Unreal Engine project's `Plugins` directory:
    ```bash
