@@ -71,6 +71,7 @@ public:
 		{USoundBase::StaticClass(),TEXT("S_")},
 		{USoundCue::StaticClass(),TEXT("Cue_")},
 		{USoundWave::StaticClass(),TEXT("Wav_")},
+		{UWorld::StaticClass(),TEXT("L_")},
 		{ULevelSequence::StaticClass(),TEXT("LS_")},
 		{UIKRetargeter::StaticClass(),TEXT("RTG_")},
 		{UIKRigDefinition::StaticClass(),TEXT("IK_")},

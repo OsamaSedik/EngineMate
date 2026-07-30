@@ -16,12 +16,12 @@ class ENGINEMATE_API UAutomatedAssetActions : public UAssetActionUtility
 	
 public:
 	UFUNCTION(CallInEditor)
-	void DuplicateAsset(int32 NumOdDuplicates);
+	void DuplicateAsset(int32 NumOdDuplicates, TArray<FAssetData> InSelectedAssets = TArray<FAssetData>());
 	
 	UFUNCTION(CallInEditor)
-	void ApplyNamingConvention();
+	void ApplyNamingConvention(TArray<UObject*> InSelectedAssets = TArray<UObject*>());
 	
 	UFUNCTION(CallInEditor)
-	void DeleteUnusedAssets();
+	void DeleteUnusedAssets(TArray<FAssetData> InSelectedAssets = TArray<FAssetData>());
 	
 };

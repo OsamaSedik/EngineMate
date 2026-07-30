@@ -16,6 +16,99 @@
 #include "EditorUtilityWidgetBlueprint.h"
 #include "Commands/FEngineMateCommands.h"
 #include "ToolMenus.h"
+#include "AssetActions/AutomatedAssetActions.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SSpinBox.h"
+#include "Styling/AppStyle.h"
+#include "ScopedTransaction.h"
+
+class SDuplicateAssetDialog : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SDuplicateAssetDialog) {}
+	SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
+	SLATE_END_ARGS()
+
+	int32 DuplicateCount = 2;
+	bool bConfirmed = false;
+	TSharedPtr<SWindow> ParentWindow;
+
+	void Construct(const FArguments& InArgs)
+	{
+		ParentWindow = InArgs._ParentWindow;
+
+		ChildSlot
+		[
+			SNew(SBorder)
+			.Padding(16)
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0, 0, 0, 12)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("How many duplicates would you like to create? (2 to 10)")))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0, 0, 0, 16)
+				[
+					SNew(SSpinBox<int32>)
+					.Value_Lambda([this]() { return DuplicateCount; })
+					.OnValueChanged_Lambda([this](int32 NewValue) { DuplicateCount = FMath::Clamp(NewValue, 2, 10); })
+					.MinValue(2)
+					.MaxValue(10)
+					.MinSliderValue(2)
+					.MaxSliderValue(10)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0, 0, 8, 0)
+					[
+						SNew(SButton)
+						.Text(FText::FromString(TEXT("Duplicate")))
+						.OnClicked_Lambda([this]()
+						{
+							bConfirmed = true;
+							if (ParentWindow.IsValid())
+							{
+								ParentWindow->RequestDestroyWindow();
+							}
+							return FReply::Handled();
+						})
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.Text(FText::FromString(TEXT("Cancel")))
+						.OnClicked_Lambda([this]()
+						{
+							bConfirmed = false;
+							if (ParentWindow.IsValid())
+							{
+								ParentWindow->RequestDestroyWindow();
+							}
+							return FReply::Handled();
+						})
+					]
+				]
+			]
+		];
+	}
+};
 
 #define LOCTEXT_NAMESPACE "FEngineMateModule"
 
@@ -39,21 +132,19 @@ void FEngineMateModule::ShutdownModule()
 
 void FEngineMateModule::InitContentMenuExtension()
 {
-	// 1. load the FContentBrowserModule from the FModuleManager
-	// 2. IMPORTANT: Use the module name exactly as registered ("ContentBrowser")
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
-	// Get the extenders list - use the Reference (&) to ensure you are modifying the actual array
+	// Folder context menu extender
 	TArray<FContentBrowserMenuExtender_SelectedPaths>& ContentBrowserMenuExtenders = ContentBrowserModule.GetAllPathViewContextMenuExtenders();
-    
-	// Create the delegate
 	FContentBrowserMenuExtender_SelectedPaths CustomContentBrowserMenuDelegate;
-    
-	// Bind your function here (You'll need a function to bind to, e.g., OnExtendContentBrowser)
-	CustomContentBrowserMenuDelegate.BindRaw(this,&FEngineMateModule::CustomContentBrowserMenuExtender);
-	
-	// add the delegate to the TArray<FContentBrowserMenuExtender_SelectedPaths> for the ContentBrowserModule
+	CustomContentBrowserMenuDelegate.BindRaw(this, &FEngineMateModule::CustomContentBrowserMenuExtender);
 	ContentBrowserMenuExtenders.Add(CustomContentBrowserMenuDelegate);
+
+	// Asset context menu extender (right-clicking assets)
+	TArray<FContentBrowserMenuExtender_SelectedAssets>& AssetMenuExtenders = ContentBrowserModule.GetAllAssetViewContextMenuExtenders();
+	FContentBrowserMenuExtender_SelectedAssets CustomAssetMenuDelegate;
+	CustomAssetMenuDelegate.BindRaw(this, &FEngineMateModule::CustomAssetContentBrowserMenuExtender);
+	AssetMenuExtenders.Add(CustomAssetMenuDelegate);
 }
 
 TSharedRef<FExtender> FEngineMateModule::CustomContentBrowserMenuExtender(const TArray<FString>& SelectedPaths)
@@ -71,7 +162,24 @@ TSharedRef<FExtender> FEngineMateModule::CustomContentBrowserMenuExtender(const 
 		);
 	}
 
-	// 3. Return the actual variable, not a null/empty TSharedRef
+	return MenuExtender;
+}
+
+TSharedRef<FExtender> FEngineMateModule::CustomAssetContentBrowserMenuExtender(const TArray<FAssetData>& SelectedAssets)
+{
+	TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender);
+	
+	if (SelectedAssets.Num() > 0)
+	{
+		SelectedAssetData = SelectedAssets;
+		MenuExtender->AddMenuExtension(
+			FName("GetAssetActions"),
+			EExtensionHook::After,
+			TSharedPtr<FUICommandList>(),
+			FMenuExtensionDelegate::CreateRaw(this, &FEngineMateModule::AddAssetContextMenuEntry)
+		);
+	}
+
 	return MenuExtender;
 }
 
@@ -88,6 +196,78 @@ void FEngineMateModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 		FSlateIcon(FEngineMateStyle::GetStyleSetName(),"ContentBrowser.DeleteEmptyFolders"),
 		FExecuteAction::CreateRaw(this,&FEngineMateModule::OnDeleteUnusedFoldersButtonClicked)
 		);
+}
+
+void FEngineMateModule::AddAssetContextMenuEntry(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("ScriptedAssetActions", LOCTEXT("ScriptedAssetActions", "Scripted Asset Actions"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DuplicateAsset", "Duplicate Asset"),
+			LOCTEXT("DuplicateAssetTooltip", "Duplicate selected asset multiple times"),
+			FSlateIcon(),
+			FExecuteAction::CreateRaw(this, &FEngineMateModule::OnDuplicateAssetClicked)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ApplyNamingConvention", "Apply Naming Convention"),
+			LOCTEXT("ApplyNamingConventionTooltip", "Automatically apply prefix naming convention to selected assets"),
+			FSlateIcon(),
+			FExecuteAction::CreateRaw(this, &FEngineMateModule::OnApplyNamingConventionClicked)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DeleteUnusedAssets", "Delete Unused Assets"),
+			LOCTEXT("DeleteUnusedAssetsTooltip", "Safely delete selected assets if they have no references"),
+			FSlateIcon(),
+			FExecuteAction::CreateRaw(this, &FEngineMateModule::OnDeleteUnusedAssetMenuClicked)
+		);
+	}
+	MenuBuilder.EndSection();
+}
+
+void FEngineMateModule::OnDuplicateAssetClicked()
+{
+	TSharedRef<SWindow> ModalWindow = SNew(SWindow)
+		.Title(FText::FromString(TEXT("Duplicate Asset")))
+		.ClientSize(FVector2D(360, 140))
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		.IsTopmostWindow(true);
+
+	TSharedPtr<SDuplicateAssetDialog> DialogWidget;
+	ModalWindow->SetContent(
+		SAssignNew(DialogWidget, SDuplicateAssetDialog)
+		.ParentWindow(ModalWindow)
+	);
+
+	GEditor->EditorAddModalWindow(ModalWindow);
+
+	if (DialogWidget.IsValid() && DialogWidget->bConfirmed)
+	{
+		UAutomatedAssetActions* Actions = NewObject<UAutomatedAssetActions>();
+		Actions->DuplicateAsset(DialogWidget->DuplicateCount, SelectedAssetData);
+	}
+}
+
+void FEngineMateModule::OnApplyNamingConventionClicked()
+{
+	TArray<UObject*> SelectedObjects;
+	for (const FAssetData& AssetData : SelectedAssetData)
+	{
+		if (UObject* Asset = AssetData.GetAsset())
+		{
+			SelectedObjects.Add(Asset);
+		}
+	}
+	UAutomatedAssetActions* Actions = NewObject<UAutomatedAssetActions>();
+	Actions->ApplyNamingConvention(SelectedObjects);
+}
+
+void FEngineMateModule::OnDeleteUnusedAssetMenuClicked()
+{
+	UAutomatedAssetActions* Actions = NewObject<UAutomatedAssetActions>();
+	Actions->DeleteUnusedAssets(SelectedAssetData);
 }
 
 void FEngineMateModule::OnDeleteUnusedAssetButtonClicked()
@@ -290,26 +470,23 @@ void FEngineMateModule::InitLevelEditorMenuExtension()
 TSharedRef<FExtender> FEngineMateModule::CustomLevelEditorMenuExtender(const TSharedRef<FUICommandList> UICommandList,const TArray<AActor*> SelectedActors)
 {
 	TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender);
-	if (SelectedActors.Num() > 0)
-	{
-		MenuExtender->AddMenuExtension(FName("ActorOptions"),
-			EExtensionHook::Before,
-			UICommandList,
-			FMenuExtensionDelegate::CreateRaw(this,&FEngineMateModule::AddLevelEditorMenuEntry));
-	}
+	MenuExtender->AddMenuExtension(FName("ActorOptions"),
+		EExtensionHook::Before,
+		UICommandList,
+		FMenuExtensionDelegate::CreateRaw(this,&FEngineMateModule::AddLevelEditorMenuEntry));
 	return MenuExtender;
 }
 
 void FEngineMateModule::AddLevelEditorMenuEntry(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(FText::FromString(TEXT("Lock Actor Selection")),
-		FText::FromString(TEXT("Prevent Actor From Been Selected In the Editor")),
+		FText::FromString(TEXT("Prevent Actor From Being Selected In the Editor")),
 		FSlateIcon(FEngineMateStyle::GetStyleSetName(),FName("LevelEditor.LockActors")),
 		FExecuteAction::CreateRaw(this,&FEngineMateModule::OnLockActorSelectionButtonClicked)
 		);
 	
 	MenuBuilder.AddMenuEntry(FText::FromString(TEXT("Unlock Actor Selection")),
-		FText::FromString(TEXT("Remove the selection constraint on all actors")),
+		FText::FromString(TEXT("Remove the selection constraint on locked actors")),
 		FSlateIcon(FEngineMateStyle::GetStyleSetName(),FName("LevelEditor.UnLockActors")),
 		FExecuteAction::CreateRaw(this,&FEngineMateModule::OnUnlockActorSelectionButtonClicked)
 		);
@@ -324,6 +501,9 @@ void FEngineMateModule::OnLockActorSelectionButtonClicked()
 		DebugHelper::ShowNotifyInfo(TEXT("No Actors Selected."));
 		return;
 	}
+
+	FScopedTransaction Transaction(LOCTEXT("LockActorSelection", "Lock Actor Selection"));
+
 	FString CurrentActorLockName = TEXT("Lock Selection For :  ");
 	for (AActor* Actor : SelectedActors)
 	{
@@ -338,22 +518,43 @@ void FEngineMateModule::OnLockActorSelectionButtonClicked()
 void FEngineMateModule::OnUnlockActorSelectionButtonClicked()
 {
 	if (!GetUEditorActorSubsystem()) return;
-	TArray<AActor*> AllLevelActors = EditorActorSubsystem->GetAllLevelActors();
-	TArray<AActor*> AllLockedLevelActors;
-	for (AActor* Actor : AllLevelActors)
+
+	FScopedTransaction Transaction(LOCTEXT("UnlockActorSelection", "Unlock Actor Selection"));
+
+	TArray<AActor*> SelectedActors = EditorActorSubsystem->GetSelectedLevelActors();
+	TArray<AActor*> TargetActorsToUnlock;
+
+	if (SelectedActors.Num() > 0)
 	{
-		if (!Actor) continue;
-		if (CheckIsActorSelectionLocked(Actor))
+		for (AActor* Actor : SelectedActors)
 		{
-			AllLockedLevelActors.Add(Actor);
+			if (Actor && CheckIsActorSelectionLocked(Actor))
+			{
+				TargetActorsToUnlock.Add(Actor);
+			}
 		}
 	}
-	if (AllLockedLevelActors.IsEmpty())
+
+	if (TargetActorsToUnlock.Num() == 0)
+	{
+		TArray<AActor*> AllLevelActors = EditorActorSubsystem->GetAllLevelActors();
+		for (AActor* Actor : AllLevelActors)
+		{
+			if (Actor && CheckIsActorSelectionLocked(Actor))
+			{
+				TargetActorsToUnlock.Add(Actor);
+			}
+		}
+	}
+
+	if (TargetActorsToUnlock.IsEmpty())
 	{
 		DebugHelper::ShowNotifyInfo(TEXT("No Locked Actors Found In Level."));
+		return;
 	}
+
 	FString CurrentActorLockName = TEXT("Unlock Actor Selection For :  ");
-	for (AActor* Actor : AllLockedLevelActors)
+	for (AActor* Actor : TargetActorsToUnlock)
 	{
 		UnlockActorSelection(Actor);
 		CurrentActorLockName.Append(TEXT("\n") + Actor->GetActorLabel());
@@ -386,7 +587,7 @@ void FEngineMateModule::OnActorSelected(UObject* SelectedObject)
 
 		if (CheckIsActorSelectionLocked(Actor))
 		{
-			EditorActorSubsystem->SetActorSelectionState(Actor, false);
+			Actor->SetLockLocation(true);
 		}
 	}
 }
@@ -396,7 +597,9 @@ void FEngineMateModule::LockActorSelection(AActor* ActorToLock)
 	if (!ActorToLock) return;
 	if (!ActorToLock->ActorHasTag(FName("Locked")))
 	{
+		ActorToLock->Modify();
 		ActorToLock->Tags.Add(FName("Locked"));
+		ActorToLock->SetLockLocation(true);
 	}
 }
 
@@ -405,7 +608,9 @@ void FEngineMateModule::UnlockActorSelection(AActor* ActorToUnlock)
 	if (!ActorToUnlock) return;
 	if (ActorToUnlock->ActorHasTag(FName("Locked")))
 	{
+		ActorToUnlock->Modify();
 		ActorToUnlock->Tags.Remove(FName("Locked"));
+		ActorToUnlock->SetLockLocation(false);
 	}
 }
 

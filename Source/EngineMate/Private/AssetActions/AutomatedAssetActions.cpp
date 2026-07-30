@@ -32,10 +32,8 @@ void UAutomatedAssetActions::FixUpReDirectors()
 	AssetToolsModule.Get().FixupReferencers(RedirectorToFixArray);
 }
 
-void UAutomatedAssetActions::DuplicateAsset(int32 NumOdDuplicates)
+void UAutomatedAssetActions::DuplicateAsset(int32 NumOdDuplicates, TArray<FAssetData> InSelectedAssets)
 {
-	// DebugHelper::PrintDebugScreen(TEXT("Working"),FColor::MakeRandomColor(),7.0f);
-	// DebugHelper::PrintDebugLog(TEXT("Working ...."));
 	if (NumOdDuplicates <= 0)
 	{
 		DebugHelper::ShowMessageDialog(EAppMsgType::Type::Ok,TEXT("Pleas Enter a Valid Number"),true);
@@ -46,7 +44,12 @@ void UAutomatedAssetActions::DuplicateAsset(int32 NumOdDuplicates)
 		DebugHelper::ShowMessageDialog(EAppMsgType::Type::Ok,TEXT("Pleas Enter a Number Between 2 to 10 "),true);
 		return;
 	}
-	TArray<FAssetData> SelectedAssets =  UEditorUtilityLibrary::GetSelectedAssetData();
+	TArray<FAssetData> SelectedAssets = InSelectedAssets.Num() > 0 ? InSelectedAssets : UEditorUtilityLibrary::GetSelectedAssetData();
+	if (SelectedAssets.Num() == 0)
+	{
+		DebugHelper::ShowNotifyInfo(TEXT("No Assets Selected"));
+		return;
+	}
 	uint32 Counter = 0;
 	NumOdDuplicates = FMath::Clamp(NumOdDuplicates,2,10);
 	for (const FAssetData& AssetData : SelectedAssets)
@@ -78,10 +81,15 @@ void UAutomatedAssetActions::DuplicateAsset(int32 NumOdDuplicates)
 	
 }
 
-void UAutomatedAssetActions::ApplyNamingConvention()
+void UAutomatedAssetActions::ApplyNamingConvention(TArray<UObject*> InSelectedAssets)
 {
 	const UEngineMateSettings* Settings = GetDefault<UEngineMateSettings>();
-	TArray<UObject*> SelectedAssets = UEditorUtilityLibrary::GetSelectedAssets();
+	TArray<UObject*> SelectedAssets = InSelectedAssets.Num() > 0 ? InSelectedAssets : UEditorUtilityLibrary::GetSelectedAssets();
+	if (SelectedAssets.Num() == 0)
+	{
+		DebugHelper::ShowNotifyInfo(TEXT("No Assets Selected"));
+		return;
+	}
 
 	uint32 Counter = 0;
 
@@ -191,9 +199,14 @@ void UAutomatedAssetActions::ApplyNamingConvention()
 		);
 	}
 }
-void UAutomatedAssetActions::DeleteUnusedAssets()
+void UAutomatedAssetActions::DeleteUnusedAssets(TArray<FAssetData> InSelectedAssets)
 {
-	TArray<FAssetData> SelectedAssets =  UEditorUtilityLibrary::GetSelectedAssetData();
+	TArray<FAssetData> SelectedAssets = InSelectedAssets.Num() > 0 ? InSelectedAssets : UEditorUtilityLibrary::GetSelectedAssetData();
+	if (SelectedAssets.Num() == 0)
+	{
+		DebugHelper::ShowNotifyInfo(TEXT("No Assets Selected"));
+		return;
+	}
 	TArray<FAssetData> UnusedAssets;
 	FixUpReDirectors();
 	for (const FAssetData& AssetData : SelectedAssets)

@@ -19,10 +19,16 @@ private:
 #pragma region  ContentBrowserMenuExtention
 	
 	TArray<FString> FolderPathsSelected;
+	TArray<FAssetData> SelectedAssetData;
 	
 	void InitContentMenuExtension();
 	TSharedRef<FExtender> CustomContentBrowserMenuExtender(const TArray<FString>& SelectedPaths);
+	TSharedRef<FExtender> CustomAssetContentBrowserMenuExtender(const TArray<FAssetData>& SelectedAssets);
 	void AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder);
+	void AddAssetContextMenuEntry(FMenuBuilder& MenuBuilder);
+	void OnDuplicateAssetClicked();
+	void OnApplyNamingConventionClicked();
+	void OnDeleteUnusedAssetMenuClicked();
 	void OnDeleteUnusedAssetButtonClicked();
 	void FixUpRedirectors();
 	void GetAllFolders(const FString& RootPath, TArray<FString>& OutFolders);
