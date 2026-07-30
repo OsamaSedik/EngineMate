@@ -1,5 +1,8 @@
 *EngineMate** is a feature-rich Unreal Engine editor plugin designed to streamline level design workflows, automate asset housekeeping, run instant performance diagnostic commands, and enforce project validation rules—all within intuitive editor utility widgets and context menus.
 ---
+
+<img width="459" height="610" alt="d1" src="https://github.com/user-attachments/assets/3a4a29ac-2642-4269-a513-e93b9ed5b5fc" />
+
 ## 🌟 Key Features
 ### 📐 Level Assist Suite (`WBP_LevelAssist`)
 - **Advanced Selection Tools**:
