@@ -1,8 +1,5 @@
 *EngineMate** is a feature-rich Unreal Engine editor plugin designed to streamline level design workflows, automate asset housekeeping, run instant performance diagnostic commands, and enforce project validation rules—all within intuitive editor utility widgets and context menus.
 ---
-
-<img width="459" height="610" alt="d1" src="https://github.com/user-attachments/assets/3a4a29ac-2642-4269-a513-e93b9ed5b5fc" />
-
 ## 🌟 Key Features
 ### 📐 Level Assist Suite (`WBP_LevelAssist`)
 - **Advanced Selection Tools**:
@@ -21,14 +18,23 @@
   - Linear duplicate actors with custom count, offset spacing, and axis alignment (X, Y, Z).
 - **Transformation Randomizer**:
   - Apply controlled random rotations (Yaw, Pitch, Roll) and position offsets for natural prop/foliage scattering.
+ 
+    <img width="470" height="847" alt="d2" src="https://github.com/user-attachments/assets/ff82bb1f-a099-42fe-84e4-1e806f9c3c89" />
+
 ---
 ### ⚡ Performance Monitor (`WBP_Performance_Monitor`)
 - Toolbar button integration for one-click access in the Level Viewport toolbar.
 - Quick button-based trigger for essential Unreal Engine stat debugging commands (FPS, Unit, RHI, GPU, Memory, Scene Rendering, InitViews, etc.) without typing console commands.
+
+  <img width="459" height="610" alt="d1" src="https://github.com/user-attachments/assets/02aef32f-2d5d-4177-acc2-fe15c7d0311d" />
+
 ---
 ### 🧹 Content Browser Automation
 - **Delete Unused Assets**: Recursively checks package dependencies, automatically resolves object redirectors, and safely deletes orphaned assets under selected folders.
 - **Delete Empty Folders**: Recursively detects and removes empty subdirectories (with built-in safeguards for system folders like `Collections`, `Developers`, `__ExternalActors__`).
+
+  <img width="252" height="91" alt="d3" src="https://github.com/user-attachments/assets/fc155258-83b4-4c21-8b82-ef1cc5df881d" />
+
 ---
 ### 🔒 Viewport Actor Selection Locking
 - Prevents accidental selection or movement of background level elements.
