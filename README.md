@@ -54,3 +54,7 @@ Configurable directly via `Project Settings -> Developer Settings -> Engine Mate
    ```bash
    cd YourProject/Plugins/
    git clone https://github.com/YourUsername/EngineMate.git
+
+   ## ⭐ Support
+
+If you find this plugin useful, consider giving the repository a **Star** ⭐ to support future updates.
